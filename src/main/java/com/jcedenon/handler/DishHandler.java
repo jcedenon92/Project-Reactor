@@ -1,12 +1,18 @@
 package com.jcedenon.handler;
 
+import com.jcedenon.dto.ValidationDTO;
 import com.jcedenon.model.Dish;
 import com.jcedenon.service.IDishService;
+import com.jcedenon.validator.RequestValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.validation.BeanPropertyBindingResult;
+import org.springframework.validation.Errors;
+import org.springframework.validation.Validator;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.net.URI;
@@ -18,6 +24,9 @@ import static org.springframework.web.reactive.function.BodyInserters.fromValue;
 public class DishHandler {
 
     private final IDishService service;
+    //private final Validator validator;
+
+    private final RequestValidator requestValidator;
 
     public Mono<ServerResponse> findAll(ServerRequest req){
 
@@ -53,7 +62,31 @@ public class DishHandler {
     public Mono<ServerResponse> create(ServerRequest req){
         Mono<Dish> monoDish = req.bodyToMono(Dish.class);
 
+        /*return monoDish
+                .flatMap( d -> {
+                    Errors errors = new BeanPropertyBindingResult(d, Dish.class.getName());
+                    validator.validate(d, errors);
+
+                    if (errors.hasErrors()) {
+                        return Flux.fromIterable(errors.getFieldErrors())
+                                .map( error -> new ValidationDTO(error.getField(), error.getDefaultMessage()))
+                                .collectList()
+                                .flatMap( list -> ServerResponse.badRequest()
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .body(fromValue(list))
+                                );
+                    } else {
+                        return service.save(d)
+                                .flatMap( dish -> ServerResponse
+                                        .created(URI.create(req.uri().toString().concat("/").concat(dish.getId())))
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .body(fromValue(dish))
+                                );
+                    }
+                });*/
+
         return monoDish
+                .flatMap(requestValidator::validate) //d -> requestValidator.validate(d)
                 .flatMap(service::save)
                 .flatMap( dish -> ServerResponse
                         .created(URI.create(req.uri().toString().concat("/").concat(dish.getId())))
